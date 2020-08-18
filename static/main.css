@@ -1,0 +1,8 @@
+.result {
+    border: 1px solid lightgray;
+    width: 200px;
+    border-radius: 5px;
+    display: none;
+    max-height: 300px;
+    overflow-y: scroll;
+}

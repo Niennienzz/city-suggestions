@@ -7,10 +7,10 @@ import (
 	"io/ioutil"
 	"log"
 
+	"github.com/go-redis/redis/v8"
+
 	"city-suggestions/model"
 	"city-suggestions/repository"
-
-	"github.com/go-redis/redis/v8"
 )
 
 func main() {

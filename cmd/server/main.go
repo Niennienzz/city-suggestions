@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-redis/redis/v8"
+
 	"city-suggestions/model"
 	"city-suggestions/repository"
-
-	"github.com/go-redis/redis/v8"
 )
 
 var (
@@ -23,6 +23,7 @@ var (
 )
 
 func main() {
+	http.Handle("/", http.FileServer(http.Dir("./static")))
 	http.HandleFunc("/city/coord", cityByCoord)
 	http.HandleFunc("/city/search", cityBySearch)
 	log.Println(http.ListenAndServe(":8000", nil))
