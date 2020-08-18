@@ -5,18 +5,6 @@
     let container = document.getElementsByClassName('result')[0];
     let currentFocusIndex;
 
-    input.addEventListener('input', (e) => {
-        const value = e.target.value;
-        if (!value) {
-            container.style.display = 'none';
-        }
-        if (result.length) {
-            buildResult(result, value);
-        } else {
-            container.style.display = 'none';
-        }
-    });
-
     input.addEventListener('input', debounce((e) => {
         const value = e.target.value;
         if (value) {
@@ -29,13 +17,13 @@
                 }
             });
         }
-    }, 10));
+    }, 25));
 
-    input.addEventListener('keydown', (e) => {
+    input.addEventListener('keydown', (ev) => {
         if (container.style.display === 'none') {
             return;
         }
-        switch (e.keyCode) {
+        switch (ev.keyCode) {
             case 40:
                 currentFocusIndex++;
                 updateTargetNode();
@@ -49,6 +37,7 @@
                     input.value = container.childNodes[currentFocusIndex].innerText;
                     cleanResult();
                 }
+                break;
             default:
                 break;
         }
@@ -88,13 +77,10 @@
 
     function debounce(fn, delay) {
         let timer;
-
         return function () {
             let context = this;
             let args = arguments;
-
             clearTimeout(timer);
-
             timer = setTimeout(() => {
                 fn.apply(context, args);
             }, delay);
