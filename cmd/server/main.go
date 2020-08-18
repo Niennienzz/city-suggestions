@@ -36,28 +36,24 @@ func cityByCoord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := new(redis.GeoRadiusQuery)
-	query.Radius = 100
-	query.Unit = "km"
-	query.WithCoord = true
-	query.WithDist = true
-	query.WithGeoHash = true
-	query.Count = 25
-	query.Sort = "ASC"
-
-	locations, err := repo.GeoRadius(r.Context(), model.RedisKeyCities.String(), lng, lat, query).Result()
+	locations, err := locationsByCoords(lng, lat, 50.0, 50)
 	if err != nil {
 		logAndWriteError(w, r, http.StatusInternalServerError, err)
 		return
 	}
 
-	logAndWriteResponse(w, r, locations)
+	cities := make([]model.City, 0)
+	for _, location := range locations {
+		cities = append(cities, model.NewCityFromGeoLocation(location))
+	}
+
+	logAndWriteResponse(w, r, cities)
 }
 
 func cityBySearch(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	if query == "" {
-		err := errors.New("'q' is required a query parameter")
+		err := errors.New("'q' is required but missing")
 		logAndWriteError(w, r, http.StatusBadRequest, err)
 		return
 	}
@@ -66,17 +62,30 @@ func cityBySearch(w http.ResponseWriter, r *http.Request) {
 		ctx = context.Background()
 		lng = new(float64)
 		lat = new(float64)
+		geo []redis.GeoLocation
 		err error
 	)
 
 	*lng, *lat, err = parseLngLat(r)
 	if errors.Is(err, errLongitudeMissing) || errors.Is(err, errLatitudeMissing) {
-		log.Println("optional 'lng' or 'lat' not set")
 		lng, lat, err = nil, nil, nil
 	}
 	if err != nil {
 		logAndWriteError(w, r, http.StatusBadRequest, err)
 		return
+	}
+
+	if lng != nil && lat != nil {
+		geo, err = locationsByCoords(*lng, *lat, 50.0, 100)
+		if err != nil {
+			logAndWriteError(w, r, http.StatusInternalServerError, err)
+			return
+		}
+	}
+
+	geoMap := make(map[int64]struct{})
+	for _, v := range geo {
+		geoMap[v.GeoHash] = struct{}{}
 	}
 
 	search := func(ctx context.Context, query string) *redis.SliceCmd {
@@ -85,7 +94,7 @@ func cityBySearch(w http.ResponseWriter, r *http.Request) {
 			"FT.SEARCH",
 			model.RedisKeyCitiesFT.String(), // Key
 			query,                           // Query
-			"LIMIT", "0", "25",              // Limit
+			"LIMIT", "0", "100",             // Limit
 		)
 		return cmd
 	}(ctx, query)
@@ -108,10 +117,40 @@ func cityBySearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if lng == nil || lat == nil {
-		logAndWriteResponse(w, r, cities)
+	// Return maximum of 50 results.
+	length := 50
+	if len(geoMap) == 0 {
+		if len(cities) < length {
+			length = len(cities)
+		}
+		logAndWriteResponse(w, r, cities[:length])
 		return
 	}
+
+	// Filter results if lng & lat is used.
+	filtered := make([]model.City, 0)
+	for _, city := range cities {
+		if _, ok := geoMap[city.GeoHash]; ok {
+			filtered = append(filtered, city)
+		}
+	}
+	if len(filtered) < length {
+		length = len(filtered)
+	}
+
+	logAndWriteResponse(w, r, filtered[:length])
+}
+
+func locationsByCoords(lng, lat, radiusKm float64, count int) ([]redis.GeoLocation, error) {
+	query := new(redis.GeoRadiusQuery)
+	query.Radius = radiusKm
+	query.Unit = "km"
+	query.WithCoord = true
+	query.WithDist = true
+	query.WithGeoHash = true
+	query.Count = count
+	query.Sort = "ASC"
+	return repo.GeoRadius(context.Background(), model.RedisKeyCities.String(), lng, lat, query).Result()
 }
 
 func parseLngLat(r *http.Request) (float64, float64, error) {

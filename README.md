@@ -11,10 +11,16 @@
 
 ## Run Locally
 
+- It is recommended to use the RediSearch Docker image.
+
+```
+zsh> docker run -p 6379:6379 redislabs/redisearch:latest
+```
+
 - Create a full-text search index, namely `cities_ft_idx`, in Redis.
 
 ```bash
-redis-cli> FT.CREATE cities_ft_idx SCHEMA name TEXT WEIGHT 5.0 country TEXT WEIGHT 1.0
+redis-cli> FT.CREATE cities_ft_idx SCHEMA name TEXT WEIGHT 1.0
 ```
 
 - Run ingestion in shell.

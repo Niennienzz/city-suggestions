@@ -42,7 +42,7 @@ func main() {
 		}
 		score := int64(scoreFloat)
 
-		searchAdd := func(ctx context.Context, score int64, name string, country string) *redis.SliceCmd {
+		searchAdd := func(ctx context.Context, score int64, name string) *redis.SliceCmd {
 			cmd := redis.NewSliceCmd(
 				ctx,
 				"FT.ADD",
@@ -51,11 +51,12 @@ func main() {
 				"1.0",                           // Weight
 				"FIELDS",
 				"name", fmt.Sprintf("%s", name),
-				"country", fmt.Sprintf("%s", country),
 			)
 			return cmd
-		}(ctx, score, raw.Name, raw.Country)
+		}(ctx, score, raw.Name)
 
+		// It seems to be a compatibility issue of the Redis driver for the following error.
+		// ```redis: can't parse array reply: "+OK"```
 		err = repo.Process(ctx, searchAdd)
 		if err != nil {
 			log.Printf("Error processing search add command (%d '%s'): %v", key, raw.Name, err)

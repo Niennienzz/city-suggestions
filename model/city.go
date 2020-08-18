@@ -12,7 +12,7 @@ import (
 type RedisKey string
 
 const (
-	RedisKeyCities   RedisKey = "cities"
+	RedisKeyCities   RedisKey = "cities_geo"
 	RedisKeyCitiesFT RedisKey = "cities_ft_idx"
 )
 
@@ -40,7 +40,6 @@ func (x CityRaw) ToCity() *City {
 
 	return &City{
 		Name:      x.Name,
-		Country:   x.Country,
 		Latitude:  latitude,
 		Longitude: longitude,
 	}
@@ -52,10 +51,13 @@ func (x CityRaw) ToGeoLocation() *redis.GeoLocation {
 
 type City struct {
 	Name      string  `json:"name"`
-	Country   string  `json:"country"`
 	Latitude  float64 `json:"-"`
 	Longitude float64 `json:"-"`
-	Score     int     `json:"score"`
+	GeoHash   int64   `json:"geoHash"`
+}
+
+func NewCityFromGeoLocation(location redis.GeoLocation) City {
+	return City{Name: location.Name, GeoHash: location.GeoHash}
 }
 
 func (x City) ToGeoLocation() *redis.GeoLocation {
@@ -104,14 +106,14 @@ func CitiesFromRediSearchRaw(records []interface{}) ([]City, error) {
 	)
 
 	for idx < len(records) {
-		score, ok := records[idx].(string)
+		geoHashStr, ok := records[idx].(string)
 		if !ok {
-			e := fmt.Errorf("record %d is not score string\n", idx+1)
+			e := fmt.Errorf("record %d is geo hash string\n", idx+1)
 			return nil, e
 		}
-		scoreInt, err := strconv.Atoi(score)
+		geoHash, err := strconv.ParseInt(geoHashStr, 10, 64)
 		if err != nil {
-			e := fmt.Errorf("record %d is not score string convertible to integer: %w\n", idx+1, err)
+			e := fmt.Errorf("record %d is not geo hash string convertible to integer: %w\n", idx+1, err)
 			return nil, e
 		}
 		idx += 1
@@ -121,15 +123,15 @@ func CitiesFromRediSearchRaw(records []interface{}) ([]City, error) {
 			e := fmt.Errorf("record %d is not city string slice\n", idx+1)
 			return nil, e
 		}
-		if len(record) != 4 {
+		if len(record) != 2 {
 			e := fmt.Errorf("record %d is not city string slice of length 4\n", idx+1)
 			return nil, e
 		}
-		if record[0].(string) != "name" || record[2].(string) != "country" {
-			e := fmt.Errorf("record %d is not city string slice with 'name' and 'country'\n", idx+1)
+		if record[0].(string) != "name" {
+			e := fmt.Errorf("record %d is not city string slice with 'name'\n", idx+1)
 			return nil, e
 		}
-		res = append(res, City{Name: record[1].(string), Country: record[3].(string), Score: scoreInt})
+		res = append(res, City{Name: record[1].(string), GeoHash: geoHash})
 		idx += 1
 	}
 
