@@ -85,7 +85,7 @@ func cityBySearch(w http.ResponseWriter, r *http.Request) {
 			"FT.SEARCH",
 			model.RedisKeyCitiesFT.String(), // Key
 			query,                           // Query
-			"LIMIT", "0", "100",             // Limit
+			"LIMIT", "0", "25",              // Limit
 		)
 		return cmd
 	}(ctx, query)
@@ -96,16 +96,22 @@ func cityBySearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO:
-	//  - Parse results properly. (Consider using the RediSearch client as well.)
-	//  - Find a way to combine the query & the coords search. (Currently lng & lat are not in use.)
 	result, err := search.Result()
 	if err != nil {
 		logAndWriteError(w, r, http.StatusBadRequest, err)
 		return
 	}
 
-	logAndWriteResponse(w, r, result)
+	cities, err := model.CitiesFromRediSearchRaw(result)
+	if err != nil {
+		logAndWriteError(w, r, http.StatusInternalServerError, err)
+		return
+	}
+
+	if lng == nil || lat == nil {
+		logAndWriteResponse(w, r, cities)
+		return
+	}
 }
 
 func parseLngLat(r *http.Request) (float64, float64, error) {

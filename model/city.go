@@ -1,6 +1,9 @@
 package model
 
 import (
+	"errors"
+	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/go-redis/redis/v8"
@@ -50,8 +53,9 @@ func (x CityRaw) ToGeoLocation() *redis.GeoLocation {
 type City struct {
 	Name      string  `json:"name"`
 	Country   string  `json:"country"`
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
+	Latitude  float64 `json:"-"`
+	Longitude float64 `json:"-"`
+	Score     int     `json:"score"`
 }
 
 func (x City) ToGeoLocation() *redis.GeoLocation {
@@ -60,4 +64,74 @@ func (x City) ToGeoLocation() *redis.GeoLocation {
 		Latitude:  x.Latitude,
 		Longitude: x.Longitude,
 	}
+}
+
+// CitiesFromRediSearchRaw parses the raw response from RediSearch to a slice of City.
+// Raw format:
+// [
+//    total, // number; Total in Redis, but not total returned. Number of returned is controlled by query.
+//    city_score_0, // string convertible to number
+//    [
+//        "name",
+//        city_name_0, // string
+//        "country",
+//        city_country_0, // string
+//    ],
+//    city_score_1, // string convertible to number
+//    [
+//        "name",
+//        city_name_1, // string
+//        "country",
+//        city_country_1, // string
+//    ]
+//    ...
+// ]
+func CitiesFromRediSearchRaw(records []interface{}) ([]City, error) {
+	if len(records) == 0 {
+		return nil, errors.New("empty response")
+	}
+
+	_, ok := records[0].(int64)
+	if !ok {
+		return nil, fmt.Errorf("first element in response is not number: %v", records[0])
+	}
+
+	records = records[1:]
+
+	var (
+		idx = 0
+		res = make([]City, 0)
+	)
+
+	for idx < len(records) {
+		score, ok := records[idx].(string)
+		if !ok {
+			e := fmt.Errorf("record %d is not score string\n", idx+1)
+			return nil, e
+		}
+		scoreInt, err := strconv.Atoi(score)
+		if err != nil {
+			e := fmt.Errorf("record %d is not score string convertible to integer: %w\n", idx+1, err)
+			return nil, e
+		}
+		idx += 1
+		record, ok := records[idx].([]interface{})
+		if !ok {
+			log.Printf("TYPE: %T", records[idx])
+			e := fmt.Errorf("record %d is not city string slice\n", idx+1)
+			return nil, e
+		}
+		if len(record) != 4 {
+			e := fmt.Errorf("record %d is not city string slice of length 4\n", idx+1)
+			return nil, e
+		}
+		if record[0].(string) != "name" || record[2].(string) != "country" {
+			e := fmt.Errorf("record %d is not city string slice with 'name' and 'country'\n", idx+1)
+			return nil, e
+		}
+		res = append(res, City{Name: record[1].(string), Country: record[3].(string), Score: scoreInt})
+		idx += 1
+	}
+
+	return res, nil
 }

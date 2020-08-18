@@ -61,7 +61,7 @@
         result.forEach(item => {
             let div = document.createElement('div');
             div.style.padding = '5px';
-            div.innerHTML = `<strong>${value}</strong>${item}`;
+            div.innerHTML = `${item.name}`;
             div.addEventListener('click', () => {
                 input.value = item;
             });
