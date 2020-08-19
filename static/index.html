@@ -1,18 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Page Title</title>
-    <link rel="stylesheet" href="main.css">
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <title>City Suggestions</title>
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/@tarekraafat/autocomplete.js@7.2.0/dist/css/autoComplete.min.css">
+    <link rel="stylesheet" href="index.css">
 </head>
 <body>
-<div id="container">
-    <div>
-        <input placeholder="enter something"/>
-    </div>
-    <div class="result">
+<div class="container">
+    <header class="header">
+        <h1>City Suggestions</h1>
+    </header>
+    <div class="body" align="center">
+        <input id="autoComplete" type="text" tabindex="1">
+        <div class="selection"></div>
     </div>
 </div>
 </body>
-<script src="script.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tarekraafat/autocomplete.js@7.2.0/dist/js/autoComplete.min.js"></script>
+<script src="index.js"></script>
 </html>

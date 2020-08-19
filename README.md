@@ -8,6 +8,7 @@
 - [Make](https://www.gnu.org/software/make/) v3.81+
 - [Redis](https://redis.io/) v6.0.6+
 - [RediSearch](https://oss.redislabs.com/redisearch/) v1.6+
+- [autoComplete.js](https://github.com/TarekRaafat/autoComplete.js) v7.2+
 
 ## Run Locally
 
